@@ -20,22 +20,41 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate & UINavi
         // Do any additional setup after loading the view.
         pickerController.delegate = self
         pickerController.allowsEditing = true
-        pickerController.mediaTypes = ["public.image", "public.movie"]
+        pickerController.mediaTypes = ["public.image"]
     }
-    //MARK: Get Image from Photos
-    @IBAction func browsPhoto(_ sender: UIBarButtonItem) {
+    //MARK: - Get Image from Photos
+    @IBAction func browsePhoto(_ sender: UIBarButtonItem) {
         self.pickerController.sourceType = .photoLibrary
-        self.present(pickerController, animated: true, completion: nil)
+        
+        let photos = PHPhotoLibrary.authorizationStatus()
+        if photos == .notDetermined {
+            PHPhotoLibrary.requestAuthorization({status in
+                if status == .authorized{
+                    DispatchQueue.main.async {
+                        self.present(self.pickerController, animated: true, completion: nil)
+                    }
+                }
+            })
+        }
     }
-    //MARK: Get Image from Camera
+    
+    //MARK: - Get Image from Camera
     @IBAction func takePhoto(_ sender: UIBarButtonItem) {
         self.pickerController.sourceType = .camera
-        self.present(pickerController, animated: true, completion: nil)
+        
+        AVCaptureDevice.requestAccess(for: AVMediaType.video) { response in
+            if response {
+                DispatchQueue.main.async {
+                    self.present(self.pickerController, animated: true, completion: nil)
+                }
+            }
+        }
     }
     
     //MARK: - Save Photo to Photos
     @IBAction func savePhoto(_ sender: AnyObject) {
-        UIImageWriteToSavedPhotosAlbum(showImage.image!, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
+        guard let image:UIImage = showImage.image else {return}
+        UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
     }
 
     //MARK: - Check saving process for success
@@ -55,7 +74,14 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate & UINavi
     //MARK: - Display Photo into Image View after processing it correclty
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         if let image:UIImage = info[UIImagePickerController.InfoKey.originalImage] as? UIImage{
-            self.showImage.image = image
+            DispatchQueue.main.async {
+                self.showImage.image = image
+            }
+        }
+        else{
+            let ac = UIAlertController(title: "Error", message: "Can't access the image from scource.", preferredStyle: .alert)
+            ac.addAction(UIAlertAction(title: "OK", style: .destructive))
+            present(ac, animated: true)
         }
         self.dismiss(animated: true, completion: nil)
     }
@@ -63,5 +89,22 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate & UINavi
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         self.dismiss(animated: true, completion: nil)
     }
+    
+    //MARK: - A function to save the image inside App Bunble. If needed, uncomment the bellow 👇 function block and call it from the a save button action.
+    /*
+    func saveImage(imageName: String){
+       //create path to store image with an instance of the FileManager
+       let fileManager = FileManager.default
+       let imagePath = (NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] as NSString).appendingPathComponent(imageName)
+
+       let image = showImage.image!
+     
+       //Convert the image to PNG format
+        let data = image.pngData()
+     
+       //Store the png image into the document directory
+       fileManager.createFile(atPath: imagePath as String, contents: data, attributes: nil)
+    }
+    */
 }
 
